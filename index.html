@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -6,7 +7,7 @@
   <title>自定义背单词</title>
   <style>
     :root {
-    --bg: #f4f7f5;
+      --bg: #f4f7f5;
       --card: #ffffff;
       --ink: #17212b;
       --muted: #65727e;
@@ -131,6 +132,22 @@
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .row > * { flex: 0 0 auto; }
     .row .grow { flex: 1 1 240px; }
+    .library-toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .select-cell { width: 44px; text-align: center; }
+    .word-check, #selectAllRows {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
 
     .hidden { display: none !important; }
     .quiz-card {
@@ -170,6 +187,41 @@
     .option.correct { background: #dff3e8; border-color: #8fcaa9; color: #174d35; }
     .option.wrong { background: #fde2df; border-color: #e7a29b; color: #7d231d; }
     .answer-input { max-width: 520px; margin: 0 auto; text-align: center; font-size: 28px !important; font-weight: 800; }
+    .voice-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .voice-btn {
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #eaf1ee;
+      color: #24443a;
+      border: 1px solid #d9e5df;
+      font-size: 13px;
+    }
+    .scene-card {
+      width: min(680px, 100%);
+      margin: 0 auto;
+      text-align: left;
+      display: grid;
+      gap: 10px;
+    }
+    .scene-word {
+      text-align: center;
+      font-size: clamp(34px, 6vw, 58px);
+      font-weight: 900;
+      line-height: 1;
+    }
+    .scene-panel {
+      border: 1px solid #dfe9e3;
+      background: rgba(255,255,255,.82);
+      border-radius: 8px;
+      padding: 12px 14px;
+      line-height: 1.65;
+      color: #334841;
+    }
+    .scene-panel strong { color: var(--ink); }
+    .scene-panel.english {
+      font-size: 18px;
+      color: #1f302b;
+    }
     .feedback { min-height: 32px; font-weight: 800; }
     .feedback.good-text { color: var(--green); }
     .feedback.bad-text { color: var(--red); }
@@ -199,12 +251,27 @@
       color: var(--muted);
       line-height: 1.65;
     }
+    .feature-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .feature-strip div {
+      border: 1px solid #dfe9e3;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfdfb;
+    }
+    .feature-strip strong { display: block; margin-bottom: 4px; }
+    .feature-strip span { color: var(--muted); font-size: 13px; line-height: 1.5; }
 
     @media (max-width: 780px) {
       header { display: block; }
       .top-actions { justify-content: flex-start; margin-top: 12px; }
       .grid { grid-template-columns: repeat(2, 1fr); }
       .hero-card { grid-template-columns: 1fr; }
+      .feature-strip { grid-template-columns: 1fr; }
       .quiz-card { min-height: 520px; padding: 16px; }
       .options { grid-template-columns: 1fr; }
     }
@@ -215,7 +282,7 @@
     <header>
       <div>
         <h1>自定义背单词</h1>
-        <p class="sub">导入自己的词表，按三轮模式反复考：认词、认义、拼写。</p>
+        <p class="sub">导入自己的词表，按四步模式练习：认词、认义、情景记忆、拼写，并支持美式/英式发音。</p>
       </div>
       <div class="top-actions">
         <button class="secondary" id="exportBtn">导出备份</button>
@@ -243,7 +310,7 @@
       <div class="card hero-card">
         <div class="hero-copy">
           <h2>今天怎么背</h2>
-          <p class="muted">先导入 10-30 个词，然后按三轮走：先认英文，再认中文，最后拼写。这里的“今日练过”按单词去重，不会因为三轮测验重复计算。</p>
+          <p class="muted">先导入 10-30 个词，然后按四步走：先认英文，再认中文，接着放进一个小情景里记，最后拼写。这里的“今日练过”按单词去重，不会因为多轮测验重复计算。</p>
           <div class="row">
             <button class="good" id="startTodayBtn">开始今日学习</button>
             <button class="warn" id="startReviewBtn">复习易错/待复习</button>
@@ -253,7 +320,7 @@
         <div class="daily-focus">
           <span>今日重点</span>
           <strong id="dailySuggestion">先导入一组单词</strong>
-          <span id="dailySuggestionText">导入后会自动生成三轮测验，并记录哪些词已经掌握。</span>
+          <span id="dailySuggestionText">导入后会自动生成四步测验，并记录哪些词已经掌握。</span>
         </div>
       </div>
 
@@ -271,20 +338,27 @@
     <section id="importView" class="view hidden">
       <div class="card">
         <h2>导入单词</h2>
-        <p class="muted">一行一个词，推荐格式：<strong>英文 中文释义</strong>。也支持用逗号、Tab、冒号分隔。</p>
-        <textarea id="wordInput" placeholder="abandon 放弃&#10;visual 视觉的&#10;accurate 精准的&#10;process 过程"></textarea>
+        <p class="muted">一行一个词，推荐格式：<strong>英文 中文释义</strong>。如果你有真实例句，可以写成：<strong>英文 中文释义 | 英文例句</strong>。</p>
+        <textarea id="wordInput" placeholder="abandon 放弃 | We decided to abandon the old plan.&#10;visual 视觉的 | The visual style feels clear and bright.&#10;accurate 精准的 | The report gives an accurate description.&#10;process 过程 | Trust the process and keep practicing."></textarea>
         <div class="row" style="margin-top: 10px;">
           <button class="good" id="addWordsBtn">加入词库</button>
           <button class="secondary" id="sampleBtn">填入示例</button>
           <button class="ghost" id="clearInputBtn">清空输入框</button>
         </div>
+        <div class="feature-strip">
+          <div><strong>发音</strong><span>导入后可在测验和词库里点美式/英式发音。</span></div>
+          <div><strong>情景</strong><span>每个词会自动生成一个记忆情景，先建立语境再拼写。</span></div>
+          <div><strong>同步</strong><span>当前数据保存在本机浏览器。云同步需要后续接登录和数据库。</span></div>
+        </div>
       </div>
 
       <div class="card">
         <h2>拍照识别入口</h2>
-        <p class="notice">第一版先做核心背词流程。拍照 OCR 后续可以接入百度/腾讯/讯飞 OCR，或者用浏览器端识别库。现在你可以先把图片识别出来的词粘贴到上面的输入框。</p>
+        <p class="notice">拍照 OCR 需要接识别服务。这个版本先留入口：你可以选图片做记录，真正识别可以后续接百度/腾讯/讯飞 OCR，或者我再帮你接浏览器端识别库。现在最稳的是用手机 OCR 识别后粘贴到上方。</p>
         <div class="row">
-          <input class="grow" type="text" value="后续功能：上传图片 → OCR识别 → 人工确认 → 导入词库" readonly>
+          <label class="file-label" for="ocrImage">选择单词图片</label>
+          <input id="ocrImage" type="file" accept="image/*">
+          <input class="grow" id="ocrStatus" type="text" value="后续功能：上传图片 → OCR识别 → 人工确认 → 导入词库" readonly>
         </div>
       </div>
     </section>
@@ -300,7 +374,7 @@
           </select>
           <label>数量</label>
           <input id="quizLimit" type="number" min="1" max="200" value="20" style="width: 90px;">
-          <button class="good" id="buildQuizBtn">生成三轮测验</button>
+          <button class="good" id="buildQuizBtn">生成四步测验</button>
         </div>
       </div>
 
@@ -315,7 +389,7 @@
         <div id="questionBox" class="question">
           <div>
             <div class="small">准备好了就开始</div>
-            <div class="meaning">三轮测验</div>
+            <div class="meaning">四步测验</div>
           </div>
         </div>
         <div>
@@ -349,13 +423,20 @@
           </select>
           <button class="bad" id="deleteFilteredBtn">删除当前筛选</button>
         </div>
+        <div class="library-toolbar">
+          <button class="secondary" id="selectVisibleBtn">全选当前列表</button>
+          <button class="ghost" id="clearSelectionBtn">取消选择</button>
+          <button class="good" id="quizSelectedBtn">复习所选</button>
+          <button class="warn" id="quizFilteredBtn">复习当前筛选</button>
+          <span class="muted" id="selectedCount">已选择 0 个</span>
+        </div>
       </div>
       <div class="card">
         <h2>词库</h2>
         <div style="overflow-x:auto;">
           <table>
             <thead>
-              <tr><th>英文</th><th>中文</th><th>状态</th><th>答对/答错</th><th>操作</th></tr>
+              <tr><th class="select-cell"><input id="selectAllRows" type="checkbox" title="选择当前列表"></th><th>英文</th><th>中文/情景</th><th>状态</th><th>答对/答错</th><th>操作</th></tr>
             </thead>
             <tbody id="wordTable"></tbody>
           </table>
@@ -368,8 +449,10 @@
     const STORAGE_KEY = "custom-word-trainer-v1";
     const todayKey = new Date().toISOString().slice(0, 10);
 
-    const state = loadState();
+    const state = normalizeState(loadState());
     let quiz = { items: [], index: 0, locked: false };
+    let cachedVoices = [];
+    let selectedWordIds = new Set();
 
     function loadState() {
       const fallback = { words: [], daily: {} };
@@ -384,6 +467,89 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       renderStats();
       renderLibrary();
+    }
+
+    function normalizeState(data) {
+      const fallback = { words: [], daily: {} };
+      const next = data && Array.isArray(data.words) ? data : fallback;
+      next.daily ||= {};
+      next.words = next.words.map(normalizeWord);
+      return next;
+    }
+
+    function normalizeWord(word) {
+      word.id ||= crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+      word.english = String(word.english || "").toLowerCase();
+      word.meaning = String(word.meaning || "");
+      word.mastery ||= 0;
+      word.correct ||= 0;
+      word.wrong ||= 0;
+      word.wrongStreak ||= 0;
+      word.createdAt ||= Date.now();
+      word.lastSeen ||= null;
+      if (!word.scene || isLegacyScene(word.scene, word.meaning)) word.scene = buildScene(word.english, word.meaning);
+      if (!word.note || isLegacyScene(word.note, word.meaning)) word.note = buildNote(word.english, word.meaning);
+      if (!word.example || isLegacyScene(word.example, word.meaning)) word.example = buildExample(word.english, word.meaning);
+      return word;
+    }
+
+    function isLegacyScene(text, meaning) {
+      const value = String(text || "");
+      return value.includes(`提醒你：${meaning}`) || value.includes(`because it means "${meaning}"`) || value.startsWith("记忆钩子：先抓住核心意思");
+    }
+
+    function guessUsageType(meaning) {
+      if (/的($|[；;，,、\s])/.test(meaning)) return "adjective";
+      if (/(做|使|让|放弃|建立|获得|减少|增加|选择|描述|解释|记住|导入|复习|掌握)/.test(meaning)) return "verb";
+      return "noun";
+    }
+
+    function buildScene(english, meaning) {
+      const type = guessUsageType(meaning);
+      if (type === "verb") return `You are reading a task note: "Before tomorrow, we need to ${english} the main problem."`;
+      if (type === "adjective") return `You are reading a comment from a teacher: "This is a ${english} detail in the sentence."`;
+      return `You are reading a short article: "The ${english} becomes important in the next paragraph."`;
+    }
+
+    function buildNote(english, meaning) {
+      return `答题后再看：${english} = ${meaning}。先用英文场景判断大概方向，再把中文释义固定下来。`;
+    }
+
+    function buildExample(english, meaning) {
+      return `Question: In this context, what does "${english}" most likely mean?`;
+    }
+
+    function refreshVoices() {
+      if ("speechSynthesis" in window) cachedVoices = window.speechSynthesis.getVoices();
+    }
+
+    function getBestVoice(lang) {
+      refreshVoices();
+      const voices = cachedVoices;
+      const sameLang = voices.filter(voice => voice.lang && voice.lang.toLowerCase().startsWith(lang.toLowerCase()));
+      const preferredNames = lang === "en-US"
+        ? ["Google US English", "Microsoft Aria", "Microsoft Jenny", "Samantha", "Alex"]
+        : ["Google UK English Female", "Google UK English Male", "Microsoft Sonia", "Daniel", "Serena"];
+      return preferredNames.map(name => sameLang.find(voice => voice.name.includes(name))).find(Boolean)
+        || sameLang.find(voice => /google|microsoft|samantha|alex|daniel|serena/i.test(voice.name))
+        || sameLang[0]
+        || voices.find(voice => voice.lang && voice.lang.toLowerCase().startsWith("en"))
+        || null;
+    }
+
+    function speak(text, lang = "en-US") {
+      if (!("speechSynthesis" in window)) {
+        alert("当前浏览器不支持发音，可以换 Chrome / Safari 试试。");
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.voice = getBestVoice(lang);
+      utterance.rate = 0.94;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
     }
 
     function wordStatus(word) {
@@ -406,14 +572,15 @@
 
     function parseLines(text) {
       return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
-        const normalized = line.replace(/[：:,\t，]/g, " ");
+        const [mainPart, scenePart] = line.split("|").map(part => part.trim());
+        const normalized = mainPart.replace(/[：:,\t，]/g, " ");
         const parts = normalized.split(/\s+/).filter(Boolean);
         const englishIndex = parts.findIndex(part => /[a-zA-Z]/.test(part));
         if (englishIndex < 0) return null;
         const english = parts[englishIndex].replace(/[^a-zA-Z'-]/g, "").toLowerCase();
         const meaning = parts.filter((_, i) => i !== englishIndex).join(" ").trim();
         if (!english || !meaning) return null;
-        return { english, meaning };
+        return { english, meaning, scene: scenePart || "" };
       }).filter(Boolean);
     }
 
@@ -429,12 +596,18 @@
         const existing = state.words.find(w => w.english === row.english);
         if (existing) {
           existing.meaning = row.meaning;
+          existing.scene = row.scene || buildScene(row.english, row.meaning);
+          existing.note = buildNote(row.english, row.meaning);
+          existing.example = buildExample(row.english, row.meaning);
           updated++;
         } else {
           state.words.push({
             id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
             english: row.english,
             meaning: row.meaning,
+            scene: row.scene || buildScene(row.english, row.meaning),
+            note: buildNote(row.english, row.meaning),
+            example: buildExample(row.english, row.meaning),
             mastery: 0,
             correct: 0,
             wrong: 0,
@@ -489,7 +662,7 @@
         text.textContent = "易错词会影响掌握度，先清掉它们，后面学新词会轻松很多。";
       } else if (counts.new > 0) {
         title.textContent = `今天可以学 ${Math.min(counts.new, 20)} 个新词`;
-        text.textContent = "先做三轮测验：认英文、认中文、拼写。";
+        text.textContent = "先做四步测验：认英文、认中文、情景记忆、拼写。";
       } else if (seenCount > 0) {
         title.textContent = "今天已经完成一轮";
         text.textContent = "可以去词库看看已掌握词，或者导入下一组新词。";
@@ -528,23 +701,87 @@
         alert("这个范围里没有单词。先导入，或者换一个练习范围。");
         return;
       }
-      quiz.items = [
-        ...pool.map(word => ({ round: 1, type: "meaning-to-word", word })),
-        ...pool.map(word => ({ round: 2, type: "word-to-meaning", word })),
-        ...pool.map(word => ({ round: 3, type: "spell-word", word }))
-      ];
+      buildQuizFromPool(pool, "adaptive");
+    }
+
+    function buildQuizFromPool(pool, mode = "adaptive") {
+      if (!pool.length) {
+        alert("没有可复习的单词。");
+        return;
+      }
+      quiz.items = buildMixedQuizItems(pool, mode);
       quiz.index = 0;
       quiz.locked = false;
       showView("quiz");
       renderQuestion();
     }
 
+    function buildQuizItemsForWord(word, mode) {
+      const status = wordStatus(word);
+      const hardMode = mode === "hard" || (mode === "adaptive" && status === "mastered");
+      if (hardMode) {
+        return [
+          { round: 1, priority: 1, type: "word-to-meaning", word, label: "混合强化：看英文回忆中文" },
+          { round: 2, priority: 2, type: "scenario-choice", word, label: "混合强化：语境判断" },
+          { round: 3, priority: 3, type: "spell-word", word, label: "混合强化：听音拼写" },
+          { round: 4, priority: 4, type: "spell-word", word, label: "混合强化：间隔再拼一次" }
+        ];
+      }
+      return [
+        { round: 1, priority: 1, type: "meaning-to-word", word, label: "混合练习：看中文选英文" },
+        { round: 2, priority: 2, type: "word-to-meaning", word, label: "混合练习：看英文选中文" },
+        { round: 3, priority: 3, type: "scenario-choice", word, label: "混合练习：语境判断" },
+        { round: 4, priority: 4, type: "spell-word", word, label: "混合练习：听音拼写" }
+      ];
+    }
+
+    function buildMixedQuizItems(pool, mode) {
+      const rawItems = pool.flatMap(word => buildQuizItemsForWord(word, mode));
+      const staggered = rawItems.map(item => ({
+        ...item,
+        sortKey: item.priority * 0.72 + Math.random() * 1.55 + pool.findIndex(word => word.id === item.word.id) * 0.08
+      })).sort((a, b) => a.sortKey - b.sortKey);
+      return avoidAdjacentSameWord(staggered).map(({ sortKey, priority, ...item }) => item);
+    }
+
+    function avoidAdjacentSameWord(items) {
+      const mixed = [];
+      const queue = items.slice();
+      while (queue.length) {
+        const last = mixed[mixed.length - 1];
+        let pickIndex = 0;
+        if (last && queue[0].word.id === last.word.id) {
+          const alternativeIndex = queue.findIndex(item => item.word.id !== last.word.id);
+          if (alternativeIndex > -1) pickIndex = alternativeIndex;
+        }
+        mixed.push(queue.splice(pickIndex, 1)[0]);
+      }
+      return mixed;
+    }
+
     function makeOptions(item) {
       const target = item.word;
-      const field = item.type === "word-to-meaning" ? "meaning" : "english";
-      const distractors = shuffle(state.words.filter(w => w.id !== target.id)).slice(0, 3).map(w => w[field]);
-      while (distractors.length < 3) distractors.push(field === "meaning" ? "还不确定" : "unknown");
-      return shuffle([target[field], ...distractors]);
+      const field = item.type === "word-to-meaning" || item.type === "scenario-choice" ? "meaning" : "english";
+      const correct = target[field];
+      const seen = new Set([correct]);
+      const distractors = [];
+      shuffle(state.words.filter(w => w.id !== target.id)).forEach(word => {
+        const value = word[field];
+        if (value && !seen.has(value) && distractors.length < 3) {
+          seen.add(value);
+          distractors.push(value);
+        }
+      });
+      const fallback = field === "meaning"
+        ? ["不是这个意思", "暂时不确定", "和上文无关"]
+        : ["unknown", "review", "memory"];
+      fallback.forEach(value => {
+        if (!seen.has(value) && distractors.length < 3) {
+          seen.add(value);
+          distractors.push(value);
+        }
+      });
+      return shuffle([correct, ...distractors]);
     }
 
     function renderQuestion() {
@@ -568,8 +805,8 @@
         return;
       }
 
-      const roundNames = { 1: "第一轮：看中文选英文", 2: "第二轮：看英文选中文", 3: "第三轮：看中文拼英文" };
-      document.getElementById("roundName").textContent = roundNames[item.round];
+      const roundNames = { 1: "第一步：看中文选英文", 2: "第二步：看英文选中文", 3: "第三步：情景记忆", 4: "第四步：看中文拼英文" };
+      document.getElementById("roundName").textContent = item.label || roundNames[item.round];
 
       const q = document.getElementById("questionBox");
       const optionsBox = document.getElementById("optionsBox");
@@ -578,17 +815,56 @@
       typingBox.classList.add("hidden");
 
       if (item.type === "meaning-to-word") {
-        q.innerHTML = `<div><div class="small">选择对应英文</div><div class="meaning">${escapeHtml(item.word.meaning)}</div></div>`;
+        q.innerHTML = `<div>
+          <div class="small">选择对应英文</div>
+          <div class="meaning">${escapeHtml(item.word.meaning)}</div>
+          <div class="voice-actions">
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-US">美式发音</button>
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-GB">英式发音</button>
+          </div>
+        </div>`;
         makeOptions(item).forEach(option => addOption(option, option === item.word.english));
       } else if (item.type === "word-to-meaning") {
-        q.innerHTML = `<div><div class="small">选择中文释义</div><div class="big">${escapeHtml(item.word.english)}</div></div>`;
+        q.innerHTML = `<div>
+          <div class="small">选择中文释义</div>
+          <div class="big">${escapeHtml(item.word.english)}</div>
+          <div class="voice-actions">
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-US">美式发音</button>
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-GB">英式发音</button>
+          </div>
+        </div>`;
+        makeOptions(item).forEach(option => addOption(option, option === item.word.meaning));
+      } else if (item.type === "scenario-choice") {
+        q.innerHTML = `<div class="scene-card">
+          <div class="small" style="text-align:center;">Read the scene, then choose the meaning.</div>
+          <div class="scene-word">${escapeHtml(item.word.english)}</div>
+          <div class="voice-actions">
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-US">美式发音</button>
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-GB">英式发音</button>
+          </div>
+          <div class="scene-panel english"><strong>Scene</strong><br>${escapeHtml(item.word.scene)}</div>
+          <div class="scene-panel english"><strong>Question</strong><br>${escapeHtml(item.word.example)}</div>
+        </div>`;
         makeOptions(item).forEach(option => addOption(option, option === item.word.meaning));
       } else {
-        q.innerHTML = `<div><div class="small">拼出英文</div><div class="meaning">${escapeHtml(item.word.meaning)}</div></div>`;
+        q.innerHTML = `<div>
+          <div class="small">听发音，再拼出英文</div>
+          <div class="meaning">${escapeHtml(item.word.meaning)}</div>
+          <div class="voice-actions">
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-US">美式发音</button>
+            <button class="voice-btn" data-speak="${escapeHtml(item.word.english)}" data-lang="en-GB">英式发音</button>
+          </div>
+        </div>`;
         typingBox.classList.remove("hidden");
         document.getElementById("typingAnswer").value = "";
         setTimeout(() => document.getElementById("typingAnswer").focus(), 0);
       }
+      q.querySelectorAll("[data-speak]").forEach(btn => {
+        btn.addEventListener("click", event => {
+          event.stopPropagation();
+          speak(btn.dataset.speak, btn.dataset.lang);
+        });
+      });
     }
 
     function addOption(text, correct) {
@@ -606,16 +882,18 @@
       updateWord(item.word, correct);
       const feedback = document.getElementById("feedback");
       if (correct) {
-        feedback.textContent = "答对了。";
+        feedback.textContent = item.type === "scenario-choice" ? `答对了。${item.word.note}` : "答对了。";
         feedback.classList.add("good-text");
       } else {
-        feedback.textContent = `答错了。正确答案：${item.word.english} / ${item.word.meaning}`;
+        feedback.textContent = item.type === "scenario-choice"
+          ? `答错了。正确答案：${item.word.meaning}。${item.word.note}`
+          : `答错了。正确答案：${item.word.english} / ${item.word.meaning}`;
         feedback.classList.add("bad-text");
       }
       if (btn) {
         btn.classList.add(correct ? "correct" : "wrong");
         document.querySelectorAll(".option").forEach(option => {
-          if (option.textContent === (item.type === "word-to-meaning" ? item.word.meaning : item.word.english)) option.classList.add("correct");
+          if (option.textContent === (item.type === "word-to-meaning" || item.type === "scenario-choice" ? item.word.meaning : item.word.english)) option.classList.add("correct");
           option.disabled = true;
         });
       }
@@ -655,53 +933,119 @@
 
     function renderLibrary() {
       const tbody = document.getElementById("wordTable");
-      const query = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
-      const filter = document.getElementById("filterStatus")?.value || "all";
-      const todaySeenOnly = filter === "today-seen";
-      const daily = getDaily();
-      const rows = state.words.filter(w => {
-        const s = wordStatus(w);
-        const matchStatus = filter === "all" || s === filter || (filter === "review" && s === "wrong") || (todaySeenOnly && daily.seen?.[w.id]);
-        const matchQuery = !query || w.english.includes(query) || w.meaning.includes(query);
-        return matchStatus && matchQuery && (!todaySeenOnly || daily.seen?.[w.id]);
-      });
+      const rows = getFilteredWords();
+      const existingIds = new Set(state.words.map(w => w.id));
+      selectedWordIds = new Set([...selectedWordIds].filter(id => existingIds.has(id)));
       tbody.innerHTML = rows.map(w => {
         const s = wordStatus(w);
         return `<tr>
-          <td><strong>${escapeHtml(w.english)}</strong></td>
-          <td>${escapeHtml(w.meaning)}</td>
+          <td class="select-cell"><input class="word-check" type="checkbox" data-select="${w.id}" ${selectedWordIds.has(w.id) ? "checked" : ""}></td>
+          <td>
+            <strong>${escapeHtml(w.english)}</strong>
+            <div class="voice-actions" style="justify-content:flex-start; margin-top:8px;">
+              <button class="voice-btn" data-speak="${escapeHtml(w.english)}" data-lang="en-US">美</button>
+              <button class="voice-btn" data-speak="${escapeHtml(w.english)}" data-lang="en-GB">英</button>
+            </div>
+          </td>
+          <td>
+            <strong>${escapeHtml(w.meaning)}</strong>
+            <div class="muted" style="font-size:12px; margin-top:6px;">${escapeHtml(w.scene)}</div>
+          </td>
           <td><span class="tag ${s}">${statusLabel(s)}</span></td>
           <td>${w.correct} / ${w.wrong}</td>
           <td><button class="ghost" data-delete="${w.id}">删除</button></td>
         </tr>`;
-      }).join("") || `<tr><td colspan="5" class="muted">还没有单词。</td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="muted">还没有单词。</td></tr>`;
+      tbody.querySelectorAll("[data-select]").forEach(input => {
+        input.addEventListener("change", () => {
+          if (input.checked) selectedWordIds.add(input.dataset.select);
+          else selectedWordIds.delete(input.dataset.select);
+          updateSelectionState();
+        });
+      });
+      tbody.querySelectorAll("[data-speak]").forEach(btn => {
+        btn.addEventListener("click", () => speak(btn.dataset.speak, btn.dataset.lang));
+      });
       tbody.querySelectorAll("[data-delete]").forEach(btn => {
         btn.addEventListener("click", () => {
           const id = btn.dataset.delete;
           const idx = state.words.findIndex(w => w.id === id);
           if (idx >= 0 && confirm("删除这个单词？")) {
             state.words.splice(idx, 1);
+            selectedWordIds.delete(id);
             saveState();
           }
         });
       });
+      updateSelectionState();
+    }
+
+    function getFilteredWords() {
+      const query = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+      const filter = document.getElementById("filterStatus")?.value || "all";
+      const todaySeenOnly = filter === "today-seen";
+      const daily = getDaily();
+      return state.words.filter(w => {
+        const s = wordStatus(w);
+        const matchStatus = filter === "all" || s === filter || (filter === "review" && s === "wrong") || (todaySeenOnly && daily.seen?.[w.id]);
+        const matchQuery = !query || w.english.includes(query) || w.meaning.includes(query);
+        return matchStatus && matchQuery && (!todaySeenOnly || daily.seen?.[w.id]);
+      });
+    }
+
+    function updateSelectionState() {
+      const rows = getFilteredWords();
+      const visibleIds = rows.map(w => w.id);
+      const visibleSelected = visibleIds.filter(id => selectedWordIds.has(id)).length;
+      const countEl = document.getElementById("selectedCount");
+      if (countEl) countEl.textContent = `已选择 ${selectedWordIds.size} 个`;
+      const selectAll = document.getElementById("selectAllRows");
+      if (selectAll) {
+        selectAll.checked = visibleIds.length > 0 && visibleSelected === visibleIds.length;
+        selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visibleIds.length;
+      }
+    }
+
+    function selectVisibleWords() {
+      getFilteredWords().forEach(word => selectedWordIds.add(word.id));
+      renderLibrary();
+    }
+
+    function clearSelection() {
+      selectedWordIds.clear();
+      renderLibrary();
+    }
+
+    function quizSelectedWords() {
+      const pool = state.words.filter(word => selectedWordIds.has(word.id));
+      if (!pool.length) return alert("先在词库里勾选要复习的单词。");
+      buildQuizFromPool(pool, "adaptive");
+    }
+
+    function quizFilteredWords() {
+      const pool = getFilteredWords();
+      if (!pool.length) return alert("当前筛选里没有单词。");
+      buildQuizFromPool(pool, "adaptive");
     }
 
     function deleteFiltered() {
       const query = document.getElementById("searchInput").value.trim().toLowerCase();
       const filter = document.getElementById("filterStatus").value;
+      const todaySeenOnly = filter === "today-seen";
+      const daily = getDaily();
       const keep = [];
       let removed = 0;
       state.words.forEach(w => {
         const s = wordStatus(w);
-        const matchStatus = filter === "all" || s === filter;
+        const matchStatus = filter === "all" || s === filter || (filter === "review" && s === "wrong") || (todaySeenOnly && daily.seen?.[w.id]);
         const matchQuery = !query || w.english.includes(query) || w.meaning.includes(query);
-        if (matchStatus && matchQuery) removed++;
+        if (matchStatus && matchQuery && (!todaySeenOnly || daily.seen?.[w.id])) removed++;
         else keep.push(w);
       });
       if (!removed) return alert("当前筛选没有单词。");
       if (confirm(`确定删除当前筛选出的 ${removed} 个单词？`)) {
         state.words = keep;
+        selectedWordIds = new Set([...selectedWordIds].filter(id => keep.some(word => word.id === id)));
         saveState();
       }
     }
@@ -721,7 +1065,7 @@
         try {
           const data = JSON.parse(reader.result);
           if (!Array.isArray(data.words)) throw new Error("bad format");
-          state.words = data.words;
+          state.words = data.words.map(normalizeWord);
           state.daily = data.daily || {};
           saveState();
           alert("导入备份成功。");
@@ -754,9 +1098,15 @@
     }));
     document.getElementById("addWordsBtn").addEventListener("click", addWordsFromInput);
     document.getElementById("sampleBtn").addEventListener("click", () => {
-      document.getElementById("wordInput").value = "abandon 放弃\\nvisual 视觉的\\naccurate 精准的\\nprocess 过程\\ncustom 自定义\\nreview 复习\\nmaster 掌握\\nimport 导入";
+      document.getElementById("wordInput").value = "abandon 放弃 | We decided to abandon the old plan.\\nvisual 视觉的 | The visual style feels clear and bright.\\naccurate 精准的 | The report gives an accurate description.\\nprocess 过程 | Trust the process and keep practicing.\\ncustom 自定义 | This is a custom word list.\\nreview 复习 | I review difficult words every morning.\\nmaster 掌握 | She wants to master English spelling.\\nimport 导入 | Import the words into the app.";
     });
     document.getElementById("clearInputBtn").addEventListener("click", () => document.getElementById("wordInput").value = "");
+    document.getElementById("ocrImage").addEventListener("change", e => {
+      const file = e.target.files[0];
+      document.getElementById("ocrStatus").value = file
+        ? `已选择：${file.name}。当前版本先不自动识别，请先用手机/系统 OCR 复制文字后粘贴到上方。`
+        : "后续功能：上传图片 → OCR识别 → 人工确认 → 导入词库";
+    });
     document.getElementById("buildQuizBtn").addEventListener("click", () => buildQuiz());
     document.getElementById("startTodayBtn").addEventListener("click", () => buildQuiz("active"));
     document.getElementById("startReviewBtn").addEventListener("click", () => buildQuiz("review"));
@@ -768,6 +1118,16 @@
     document.getElementById("searchInput").addEventListener("input", renderLibrary);
     document.getElementById("filterStatus").addEventListener("change", renderLibrary);
     document.getElementById("deleteFilteredBtn").addEventListener("click", deleteFiltered);
+    document.getElementById("selectVisibleBtn").addEventListener("click", selectVisibleWords);
+    document.getElementById("clearSelectionBtn").addEventListener("click", clearSelection);
+    document.getElementById("quizSelectedBtn").addEventListener("click", quizSelectedWords);
+    document.getElementById("quizFilteredBtn").addEventListener("click", quizFilteredWords);
+    document.getElementById("selectAllRows").addEventListener("change", e => {
+      const ids = getFilteredWords().map(word => word.id);
+      if (e.target.checked) ids.forEach(id => selectedWordIds.add(id));
+      else ids.forEach(id => selectedWordIds.delete(id));
+      renderLibrary();
+    });
     document.getElementById("exportBtn").addEventListener("click", exportData);
     document.getElementById("importFile").addEventListener("change", e => e.target.files[0] && importData(e.target.files[0]));
     document.getElementById("resetBtn").addEventListener("click", () => {
@@ -778,6 +1138,8 @@
       }
     });
 
+    refreshVoices();
+    if ("speechSynthesis" in window) window.speechSynthesis.onvoiceschanged = refreshVoices;
     renderStats();
     renderLibrary();
   </script>
