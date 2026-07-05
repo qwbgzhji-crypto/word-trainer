@@ -30,7 +30,18 @@
     header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: clamp(30px, 5vw, 50px); line-height: 1; letter-spacing: 0; }
     .sub { margin: 8px 0 0; color: var(--muted); }
+    .header-tools { position: relative; display: grid; gap: 10px; justify-items: end; }
     .top-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .sync-panel {
+      width: min(520px, calc(100vw - 28px));
+      padding: 14px;
+      border: 1px solid rgba(80, 108, 96, .18);
+      border-radius: 8px;
+      background: rgba(255,255,255,.96);
+      box-shadow: var(--shadow);
+      text-align: left;
+    }
+    .sync-panel h2 { margin: 0 0 6px; font-size: 18px; }
 
     button, .file-label {
       border: 0;
@@ -128,6 +139,7 @@
     }
     textarea { min-height: 190px; resize: vertical; line-height: 1.55; }
     textarea:focus, input:focus { border-color: #8ab8a6; box-shadow: 0 0 0 3px rgba(47,143,95,.12); }
+    #syncCodeBox { min-height: 94px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
 
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .row > * { flex: 0 0 auto; }
@@ -268,6 +280,7 @@
 
     @media (max-width: 780px) {
       header { display: block; }
+      .header-tools { justify-items: start; }
       .top-actions { justify-content: flex-start; margin-top: 12px; }
       .grid { grid-template-columns: repeat(2, 1fr); }
       .hero-card { grid-template-columns: 1fr; }
@@ -284,11 +297,26 @@
         <h1>自定义背单词</h1>
         <p class="sub">导入自己的词表，按四步模式练习：认词、认义、情景记忆、拼写，并支持美式/英式发音。</p>
       </div>
-      <div class="top-actions">
-        <button class="secondary" id="exportBtn">导出备份</button>
-        <label class="file-label" for="importFile">导入备份</label>
-        <input id="importFile" type="file" accept="application/json,.json">
-        <button class="ghost" id="resetBtn">清空数据</button>
+      <div class="header-tools">
+        <div class="top-actions">
+          <button class="secondary" id="exportBtn">导出备份</button>
+          <label class="file-label" for="importFile">导入备份</label>
+          <input id="importFile" type="file" accept="application/json,.json">
+          <button class="secondary" id="toggleSyncPanelBtn">同步码</button>
+          <button class="ghost" id="resetBtn">清空数据</button>
+        </div>
+        <div class="sync-panel hidden" id="syncPanel">
+          <h2>同步码备份</h2>
+          <p class="muted">旧设备生成并复制，新设备粘贴后导入。码会随词库变长；短码需要真正云数据库。</p>
+          <textarea id="syncCodeBox" placeholder="这里会显示同步码，也可以粘贴另一台设备生成的同步码"></textarea>
+          <div class="row" style="margin-top: 10px;">
+            <button class="good" id="generateSyncCodeBtn">生成</button>
+            <button class="secondary" id="copySyncCodeBtn">复制</button>
+            <button class="warn" id="importSyncCodeBtn">导入</button>
+            <button class="ghost" id="clearSyncCodeBtn">清空</button>
+          </div>
+          <p class="muted" id="syncCodeStatus">同步码会包含你的学习数据，请不要发给不想共享词库的人。</p>
+        </div>
       </div>
     </header>
 
@@ -361,6 +389,7 @@
           <input class="grow" id="ocrStatus" type="text" value="后续功能：上传图片 → OCR识别 → 人工确认 → 导入词库" readonly>
         </div>
       </div>
+
     </section>
 
     <section id="quizView" class="view hidden">
@@ -1076,6 +1105,66 @@
       reader.readAsText(file);
     }
 
+    function encodeSyncCode() {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        state
+      };
+      const json = JSON.stringify(payload);
+      const bytes = new TextEncoder().encode(json);
+      let binary = "";
+      bytes.forEach(byte => binary += String.fromCharCode(byte));
+      return "WT1-" + btoa(binary);
+    }
+
+    function decodeSyncCode(code) {
+      const clean = code.trim().replace(/\s+/g, "");
+      if (!clean.startsWith("WT1-")) throw new Error("bad prefix");
+      const binary = atob(clean.slice(4));
+      const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      if (!payload?.state || !Array.isArray(payload.state.words)) throw new Error("bad payload");
+      return payload.state;
+    }
+
+    function generateSyncCode() {
+      const box = document.getElementById("syncCodeBox");
+      box.value = encodeSyncCode();
+      document.getElementById("syncCodeStatus").textContent = `已生成同步码：${state.words.length} 个词，复制到另一台设备导入即可。`;
+    }
+
+    async function copySyncCode() {
+      const box = document.getElementById("syncCodeBox");
+      if (!box.value.trim()) generateSyncCode();
+      box.select();
+      try {
+        await navigator.clipboard.writeText(box.value);
+        document.getElementById("syncCodeStatus").textContent = "同步码已复制。";
+      } catch {
+        document.execCommand("copy");
+        document.getElementById("syncCodeStatus").textContent = "同步码已复制；如果失败，请手动全选复制。";
+      }
+    }
+
+    function importSyncCode() {
+      const box = document.getElementById("syncCodeBox");
+      try {
+        const imported = decodeSyncCode(box.value);
+        const count = imported.words.length;
+        if (!confirm(`将导入同步码中的 ${count} 个词和学习记录，并覆盖当前设备的数据。继续吗？`)) return;
+        state.words = imported.words.map(normalizeWord);
+        state.daily = imported.daily || {};
+        selectedWordIds.clear();
+        saveState();
+        renderStats();
+        renderLibrary();
+        document.getElementById("syncCodeStatus").textContent = `导入成功：已恢复 ${count} 个词和学习记录。`;
+      } catch {
+        alert("同步码格式不对。请确认复制完整，从 WT1- 开头。");
+      }
+    }
+
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, ch => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -1106,6 +1195,16 @@
       document.getElementById("ocrStatus").value = file
         ? `已选择：${file.name}。当前版本先不自动识别，请先用手机/系统 OCR 复制文字后粘贴到上方。`
         : "后续功能：上传图片 → OCR识别 → 人工确认 → 导入词库";
+    });
+    document.getElementById("toggleSyncPanelBtn").addEventListener("click", () => {
+      document.getElementById("syncPanel").classList.toggle("hidden");
+    });
+    document.getElementById("generateSyncCodeBtn").addEventListener("click", generateSyncCode);
+    document.getElementById("copySyncCodeBtn").addEventListener("click", copySyncCode);
+    document.getElementById("importSyncCodeBtn").addEventListener("click", importSyncCode);
+    document.getElementById("clearSyncCodeBtn").addEventListener("click", () => {
+      document.getElementById("syncCodeBox").value = "";
+      document.getElementById("syncCodeStatus").textContent = "同步码会包含你的学习数据，请不要发给不想共享词库的人。";
     });
     document.getElementById("buildQuizBtn").addEventListener("click", () => buildQuiz());
     document.getElementById("startTodayBtn").addEventListener("click", () => buildQuiz("active"));
